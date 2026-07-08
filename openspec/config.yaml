@@ -1,20 +1,89 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  # Project: Marzo — EOM Bill Management App
+
+  ## Purpose
+  Full-stack app to help households manage and pay end-of-month (EOM) bills.
+  Tracks monthly cash flow (income/expenses), settles internal debts between
+  household members, and provides a manual bill-payment checklist + summary dashboard.
+
+  ## Tech Stack
+  - Frontend: Next.js (App Router) + React + Tailwind CSS
+  - Backend: Next.js API Routes + Prisma ORM
+  - Database: PostgreSQL
+  - Deployment: Web-first (PWA-ready). Architecture MUST allow a future React Native
+    mobile app — keep API routes REST-like and rendering-agnostic.
+  - Component library: Storybook
+  - Node.js runtime for cron/sync jobs (or external scheduler invoking API routes)
+
+  ## Global Rules (apply to ALL specs)
+  - UI must be crisp and lightweight; prioritize performance and small bundles.
+  - Dense UI: show as much info as possible at once (users are migrating from
+    spreadsheets). Use generous infinite scroll for lists, not sparse pagination.
+  - i18n: Spanish is the primary language. ALL user-facing text must use i18n keys.
+    Keep it simple — fixed labels and simple interpolation only. NO complex
+    pluralization/gender rules. Use fixed label keys.
+  - Theming: light and dark modes. Default to device appearance. Provide a manual
+    toggle. Use CSS variables / Tailwind dark mode (class strategy).
+  - Accessibility: basic — keyboard navigable, semantic HTML, reasonable focus
+    management. No formal WCAG target, but Storybook a11y addon encouraged.
+  - Currency: multi-currency support. Each household has ONE main currency.
+    Any record in a foreign currency is converted to the main currency using the
+    exchange rate for the day the record was added. FX rates come from an external
+    API (e.g. exchangerate.host); a daily rate snapshot is stored per record date.
+    UI displays amounts in the main currency primarily; the original currency is
+    shown in a tooltip/detail view.
+  - Financial precision: use PostgreSQL numeric/decimal types — NEVER floating point
+    for money.
+  - Every feature spec MUST define: empty states, loading states, and error states.
+  - Error handling: surface user-friendly errors; never leak stack traces or secrets.
+  - No manual transaction entry: transactions originate from bank sync only.
+    In MVP, the bank integration is MOCKED via JSON fixtures that replace the real
+    provider. The sync interface is provider-ready so a real aggregator (e.g. Belvo,
+    Plaid) can be plugged in later without changing consumers.
+  - Bank credentials stored encrypted at rest (AES-256), app-level key. Never log
+    or expose credentials.
+  - Billing cycle: fixed — each billing month runs from the 25th of a calendar month
+    to the 24th of the next calendar month. All events within that window belong to
+    that billing month. Pre-existing account balances are IGNORED; only events that
+    occur within the month window are tracked.
+  - Income = transaction with POSITIVE amount. Expense = transaction with NEGATIVE
+    amount (includes credit card activity from sync). Determined by amount sign.
+    Stock sales / savings withdrawals are just positive transactions = income.
+  - Expense categorization: MANUAL only. User assigns a category from a predefined
+    list (e.g. ATM withdrawal, direct debit card payment, money transfer, bank fee,
+    utilities, etc.).
+  - Settlement: each member's net = their income − their expenses. Members with
+    surplus transfer to members with deficit, minimizing total number/amount of
+    transfers (min-transfers algorithm).
+  - Permissions: Admin + Member roles within a household. Admin (creator) can
+    add/remove members and manage household settings. All members can see all
+    household financial data. Removed members: data retained, access revoked.
+  - Email notifications: operational alerts only (bill due soon, sync failure,
+    new member added, monthly settlement ready). Infrastructure (provider + template
+    system) is established in the foundation spec; triggers wired in the
+    notifications spec.
+
+  ## Spec Numbering Convention
+  Specs are numbered in implementation dependency order:
+  01-system-design (foundation: full DB schema, routing, theming, i18n, Storybook,
+    reusable components, state patterns, encryption + email utilities) →
+  02-auth-users → 03-households-onboarding → 04-bank-accounts-sync →
+  05-transactions-monthly-cycle → 06-summary-dashboard → 07-balance-settlement →
+  08-pay-bills-checklist → 09-notifications
+
+  Spec 01 defines the COMPLETE database schema for all domains up front so later
+  specs reference it without schema drift. Each subsequent spec builds only its UI,
+  API routes, and business logic on top of the foundation.
 
 # Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+rules:
+  proposal:
+    - Keep proposals focused on what & why; avoid implementation detail.
+    - Always include a "Non-goals" section.
+  tasks:
+    - Break tasks into chunks of max 2 hours.
+    - Each task must be independently verifiable.
+    - Do NOT generate application source code in specs — specs define requirements,
+      acceptance criteria, UI states, and data models only.
